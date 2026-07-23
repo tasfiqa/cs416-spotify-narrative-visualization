@@ -1,0 +1,18 @@
+{
+  "festivalId" : "govball2026",
+  "totalArtistsMatched" : 6,
+  "userLineupMatchPercentile" : 85,
+  "festivalPersona" : "THE SEEKER",
+  "topArtists" : [ {
+    "name" : "Japanese Breakfast"
+  }, {
+    "name" : "A$AP Rocky"
+  }, {
+    "name" : "Clipse"
+  }, {
+    "name" : "Kali Uchis"
+  }, {
+    "name" : "The Alchemist"
+  } ],
+  "topDiscoveryArtists" : [ ]
+}

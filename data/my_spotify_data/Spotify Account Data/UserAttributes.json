@@ -1,0 +1,17 @@
+{
+  "username" : "fruitcakel",
+  "email" : "tas.fiq.a@gmail.com",
+  "country" : "US",
+  "createdFromFacebook" : false,
+  "facebookUid" : null,
+  "birthdate" : "1981-11-12",
+  "gender" : "female",
+  "postalCode" : null,
+  "mobileNumber" : null,
+  "mobileOperator" : null,
+  "mobileBrand" : null,
+  "creationTime" : "2015-08-08",
+  "assuredEstimatedAge" : null,
+  "assuredAgeMethod" : null,
+  "assuredAgeTimestamp" : null
+}
