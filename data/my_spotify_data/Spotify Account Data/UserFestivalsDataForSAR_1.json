@@ -1,0 +1,18 @@
+{
+  "festivalId" : "acl2026",
+  "totalArtistsMatched" : 7,
+  "userLineupMatchPercentile" : 79,
+  "festivalPersona" : "THE SEEKER",
+  "topArtists" : [ {
+    "name" : "The xx"
+  }, {
+    "name" : "Kings of Leon"
+  }, {
+    "name" : "Steve Aoki"
+  }, {
+    "name" : "Charli xcx"
+  }, {
+    "name" : "Turnstile"
+  } ],
+  "topDiscoveryArtists" : [ ]
+}

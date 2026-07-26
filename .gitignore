@@ -1,4 +1,6 @@
-data
-data/*
 __pycache__
 __pycache__/*
+package-lock.json
+package.json
+node_modules
+node_modules/*
