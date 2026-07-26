@@ -226,15 +226,9 @@
   // {'Shiva', 'Bear'} or, when a title contains an apostrophe, {"It's Over"}.
   // Pull out each quoted element regardless of which quote character wraps it.
   function parseTrackSet(raw) {
-    if (!raw) return [];
-    const re = /'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"/g;
-    const tracks = [];
-    let match;
-    while ((match = re.exec(raw)) !== null) {
-      const token = match[1] !== undefined ? match[1] : match[2];
-      tracks.push(token.replace(/\\(.)/g, "$1"));
-    }
-    return tracks.sort((a, b) => a.localeCompare(b));
+    if (!raw || !raw.length) return [];
+    return [...raw].sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed))
+    ;
   }
 
   // Load one month's artists + tracks, and derive everything a scene needs to render.
@@ -244,7 +238,15 @@
     const top = [...artists]
       .sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed))
       .slice(0, TOP_N)
-      .map(d => ({ ...d, trackList: parseTrackSet(d.tracks) }));
+      .map(d => ({
+        ...d,
+        trackList: parseTrackSet(
+          tracks
+            .filter(t => t.artistName === d.artistName)
+            .filter(t => t.minutesPlayed >= 1)
+            .map(t => `${t.trackName} (${Math.round(t.minutesPlayed)} min)`)
+        )
+  }));
 
     const leader = top[0];
     const topTrack = tracks
