@@ -8,7 +8,9 @@
     body {
       font-family: sans-serif;
       color: #1f2933;
-      margin: 24px;
+      max-width: 1200px;
+      margin: 25px auto;
+      padding: 0 25px;
     }
     #scene-title {
       font-size: 20px;
@@ -19,8 +21,13 @@
       font-size: 14px;
       color: #52606d;
       margin: 0 0 12px;
-      max-width: 560px;
+      max-width: 900px;
       min-height: 40px;
+    }
+    svg#chart {
+      display: block;
+      width: 100%;
+      height: auto;
     }
     .bubble {
       fill: steelblue;
@@ -80,13 +87,27 @@
       font-size: 12px;
       pointer-events: none;
       opacity: 0;
+      max-width: 260px;
+      max-height: 220px;
+      overflow-y: auto;
+    }
+    .tooltip strong {
+      display: block;
+      margin-bottom: 4px;
+    }
+    .tooltip ul {
+      margin: 0;
+      padding-left: 16px;
+    }
+    .tooltip li {
+      white-space: normal;
     }
     #controls {
       display: flex;
       align-items: center;
       gap: 12px;
       margin-top: 8px;
-      width: 600px;
+      width: 100%;
     }
     #controls button {
       font: inherit;
@@ -197,13 +218,33 @@
     return text.length > max ? text.slice(0, max - 1) + "…" : text;
   }
 
+  function escapeHtml(text) {
+    return text.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+  }
+
+  // The artists CSV stores each artist's tracks as a Python set repr, e.g.
+  // {'Shiva', 'Bear'} or, when a title contains an apostrophe, {"It's Over"}.
+  // Pull out each quoted element regardless of which quote character wraps it.
+  function parseTrackSet(raw) {
+    if (!raw) return [];
+    const re = /'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)"/g;
+    const tracks = [];
+    let match;
+    while ((match = re.exec(raw)) !== null) {
+      const token = match[1] !== undefined ? match[1] : match[2];
+      tracks.push(token.replace(/\\(.)/g, "$1"));
+    }
+    return tracks.sort((a, b) => a.localeCompare(b));
+  }
+
   // Load one month's artists + tracks, and derive everything a scene needs to render.
   async function loadScene(i) {
     const [artists, tracks] = await Promise.all([scenes[i].artists(), scenes[i].tracks()]);
 
     const top = [...artists]
       .sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed))
-      .slice(0, TOP_N);
+      .slice(0, TOP_N)
+      .map(d => ({ ...d, trackList: parseTrackSet(d.tracks) }));
 
     const leader = top[0];
     const topTrack = tracks
@@ -221,17 +262,22 @@
 
   // ---- dimensions ----
   // No axes — position carries no meaning here, only the force layout keeping
-  // bubbles from overlapping. So the plot area is just a square-ish canvas.
+  // bubbles from overlapping. The canvas is set in a fixed coordinate system,
+  // then scaled to fill the page via the SVG's viewBox (see below) so it grows
+  // with the browser window instead of staying pinned to one pixel size.
   const margin = { top: 50, right: 20, bottom: 20, left: 20 };
-  const width = 700 - margin.left - margin.right;
-  const height = 460 - margin.top - margin.bottom;
+  const width = 1100 - margin.left - margin.right;
+  const height = 640 - margin.top - margin.bottom;
+  const totalWidth = width + margin.left + margin.right;
+  const totalHeight = height + margin.top + margin.bottom;
   const maxRadius = Math.min(width, height) / 6;
-  d3.select("#controls").style("width", (width + margin.left + margin.right) + "px");
+  d3.select("#controls").style("max-width", totalWidth + "px");
 
   // ---- svg setup ----
   const svg = d3.select("#chart")
-    .attr("width", width + margin.left + margin.right)
-    .attr("height", height + margin.top + margin.bottom)
+    .attr("viewBox", `0 0 ${totalWidth} ${totalHeight}`)
+    .attr("preserveAspectRatio", "xMidYMid meet")
+    .style("max-width", totalWidth + "px")
     .append("g")
     .attr("transform", `translate(${margin.left},${margin.top})`);
 
@@ -277,7 +323,10 @@
           .attr("class", "bubble")
           .attr("r", 0)
           .on("mouseover", (event, d) => {
-            tooltip.style("opacity", 1).html(`${d.artistName}: ${Math.round(d.minutesPlayed)} min`);
+            const list = d.trackList.length
+              ? `<ul>${d.trackList.map(t => `<li>${escapeHtml(t)}</li>`).join("")}</ul>`
+              : "<em>No tracks recorded</em>";
+            tooltip.style("opacity", 1).html(`<strong>${escapeHtml(d.artistName)}</strong>${list}`);
           })
           .on("mousemove", (event) => {
             tooltip.style("left", (event.pageX + 10) + "px")
