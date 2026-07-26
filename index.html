@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>D3 Narrative Visualization</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.9.0/d3.min.js"></script>
+  <style>
+    body {
+      font-family: sans-serif;
+      color: #1f2933;
+      margin: 24px;
+    }
+    #scene-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin: 0 0 4px;
+    }
+    #scene-subtitle {
+      font-size: 14px;
+      color: #52606d;
+      margin: 0 0 12px;
+      max-width: 560px;
+      min-height: 40px;
+    }
+    .bar {
+      fill: steelblue;
+    }
+    .bar.muted {
+      fill: #cbd5e1;
+    }
+    .bar:hover {
+      fill: orange;
+    }
+    .axis text {
+      font-size: 12px;
+      fill: #52606d;
+    }
+    .axis path,
+    .axis line {
+      stroke: #cbd5e1;
+    }
+    .grid line {
+      stroke: #e4e7eb;
+    }
+    .grid path {
+      stroke: none;
+    }
+    .annotation-text {
+      font-size: 12px;
+      font-weight: 600;
+      fill: #1f2933;
+    }
+    .annotation-line {
+      stroke: #52606d;
+      stroke-width: 1;
+      stroke-dasharray: 3 3;
+    }
+    .tooltip {
+      position: absolute;
+      background: #333;
+      color: #fff;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      pointer-events: none;
+      opacity: 0;
+    }
+    #controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-top: 8px;
+      width: 600px;
+    }
+    #controls button {
+      font: inherit;
+      font-size: 14px;
+      padding: 6px 14px;
+      border: 1px solid #9aa5b1;
+      border-radius: 4px;
+      background: #fff;
+      cursor: pointer;
+    }
+    #controls button:hover:not(:disabled) {
+      background: #f5f7fa;
+    }
+    #controls button:disabled {
+      opacity: 0.4;
+      cursor: default;
+    }
+    #scene-progress {
+      font-size: 13px;
+      color: #52606d;
+    }
+    #scene-dots {
+      display: flex;
+      gap: 6px;
+      margin-left: auto;
+    }
+    .dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: #cbd5e1;
+      border: none;
+      padding: 0;
+      cursor: pointer;
+    }
+    .dot.active {
+      background: steelblue;
+    }
+  </style>
+</head>
+<body>
+
+<h1 id="scene-title"></h1>
+<p id="scene-subtitle"></p>
+
+<svg id="chart"></svg>
+<div class="tooltip"></div>
+
+<div id="controls">
+  <button id="prev" type="button">&#8592; Previous</button>
+  <button id="next" type="button">Next &#8594;</button>
+  <span id="scene-progress"></span>
+  <span id="scene-dots"></span>
+</div>
+
+<script>
+  // ---- data ----
+  const data = [
+    { name: "A", value: 30 },
+    { name: "B", value: 80 },
+    { name: "C", value: 45 },
+    { name: "D", value: 60 },
+    { name: "E", value: 20 },
+  ];
+
+  // ---- scenes ----
+  // Each scene is a view of the same data: which rows are shown, in what order,
+  // which bar carries the point, and the annotation that states it.
+  const scenes = [
+    {
+      title: "January 2026",
+      subtitle: "All five categories, in their original order. Nothing is emphasized yet — " +
+                "this is the baseline the next two scenes build on.",
+      artists: () => d3.csv("data/preprocessed_data/artists_1_2026.csv", d3.autoType),
+      tracks: () => d3.csv("data/preprocessed_data/tracks_1_2026.csv", d3.autoType),
+      highlight: null,
+      annotation: null,
+    },
+    {
+      title: "February 2026",
+      subtitle: "B is the largest value at 80 — roughly four times the smallest category. " +
+                "Everything else is dimmed so the gap is the only thing you read.",
+      artists: () => d3.csv("data/preprocessed_data/artists_2_2026.csv", d3.autoType),
+      tracks: () => d3.csv("data/preprocessed_data/tracks_2_2026.csv", d3.autoType),
+      highlight: null,
+      annotation: null,
+    },
+    {
+      title: "March 2026",
+      subtitle: "Sorting descending and keeping the top three makes the ordering explicit. " +
+                "The y-axis is unchanged, so the bars stay comparable to the earlier scenes.",
+      artists: () => d3.csv("data/preprocessed_data/artists_3_2026.csv", d3.autoType),
+      tracks: () => d3.csv("data/preprocessed_data/tracks_3_2026.csv", d3.autoType),
+      highlight: null,
+      annotation: null,
+    },
+    {
+      title: "April 2026",
+      subtitle: "Sorting descending and keeping the top three makes the ordering explicit. " +
+                "The y-axis is unchanged, so the bars stay comparable to the earlier scenes.",
+      artists: () => d3.csv("data/preprocessed_data/artists_4_2026.csv", d3.autoType),
+      tracks: () => d3.csv("data/preprocessed_data/tracks_4_2026.csv", d3.autoType),
+      highlight: null,
+      annotation: null,
+    },
+    {
+      title: "May 2026",
+      subtitle: "Sorting descending and keeping the top three makes the ordering explicit. " +
+                "The y-axis is unchanged, so the bars stay comparable to the earlier scenes.",
+      artists: () => d3.csv("data/preprocessed_data/artists_5_2026.csv", d3.autoType),
+      tracks: () => d3.csv("data/preprocessed_data/tracks_5_2026.csv", d3.autoType),
+      highlight: null,
+      annotation: null,
+    },
+    {
+      title: "June 2026",
+      subtitle: "Sorting descending and keeping the top three makes the ordering explicit. " +
+                "The y-axis is unchanged, so the bars stay comparable to the earlier scenes.",
+      artists: () => d3.csv("data/preprocessed_data/artists_6_2026.csv", d3.autoType),
+      tracks: () => d3.csv("data/preprocessed_data/tracks_6_2026.csv", d3.autoType),
+      highlight: null,
+      annotation: null,
+    },
+    {
+      title: "July 2026",
+      subtitle: "Sorting descending and keeping the top three makes the ordering explicit. " +
+                "The y-axis is unchanged, so the bars stay comparable to the earlier scenes.",
+      artists: () => d3.csv("data/preprocessed_data/artists_7_2026.csv", d3.autoType),
+      tracks: () => d3.csv("data/preprocessed_data/tracks_7_2026.csv", d3.autoType),
+      highlight: null,
+      annotation: null,
+    },
+  ];
+
+  let sceneIndex = 0;
+  const DURATION = 750;
+
+  // ---- dimensions ----
+  const margin = { top: 30, right: 30, bottom: 40, left: 50 };
+  const width = 600 - margin.left - margin.right;
+  const height = 400 - margin.top - margin.bottom;
+
+  // ---- svg setup ----
+  const svg = d3.select("#chart")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", `translate(${margin.left},${margin.top})`);
+
+  // ---- scales ----
+  // x is rebuilt per scene (rows can change). y is fixed across every scene so a
+  // bar of a given height always means the same value.
+  const x = d3.scaleBand()
+    .range([0, width])
+    .padding(0.2);
+
+  const y = d3.scaleLinear()
+    .domain([0, d3.max(data, d => d.value)]).nice()
+    .range([height, 0]);
+
+  // ---- static layers (drawn once, updated per scene) ----
+  const gridG = svg.append("g").attr("class", "grid");
+  const barsG = svg.append("g");
+  const annotationG = svg.append("g");
+
+  const xAxisG = svg.append("g")
+    .attr("class", "axis")
+    .attr("transform", `translate(0,${height})`);
+
+  const yAxisG = svg.append("g")
+    .attr("class", "axis");
+
+  gridG.call(d3.axisLeft(y).ticks(5).tickSize(-width).tickFormat(""));
+  yAxisG.call(d3.axisLeft(y).ticks(5));
+
+  // ---- tooltip ----
+  const tooltip = d3.select(".tooltip");
+
+  // Bar with a 4px rounded top edge, anchored to the baseline.
+  function barPath(bx, bw, value) {
+    const h = height - y(value);
+    const r = Math.min(4, bw / 2, h);
+    if (h <= 0) return `M${bx},${height}h${bw}`;
+    const top = height - h;
+    return `M${bx},${height}`
+         + `V${top + r}`
+         + `Q${bx},${top} ${bx + r},${top}`
+         + `H${bx + bw - r}`
+         + `Q${bx + bw},${top} ${bx + bw},${top + r}`
+         + `V${height}Z`;
+  }
+
+  // ---- render one scene ----
+  function render(instant) {
+    const scene = scenes[sceneIndex];
+    const rows = scene.rows();
+    const dur = instant ? 0 : DURATION;
+
+    d3.select("#scene-title").text(scene.title);
+    d3.select("#scene-subtitle").text(scene.subtitle);
+
+    x.domain(rows.map(d => d.name));
+
+    xAxisG.transition().duration(dur).call(d3.axisBottom(x));
+
+    barsG.selectAll("path.bar")
+      .data(rows, d => d.name)
+      .join(
+        enter => enter.append("path")
+          .attr("class", "bar")
+          .each(function (d) {
+            // start flat on the baseline so the bar grows in
+            this._state = { x: x(d.name), w: x.bandwidth(), v: 0 };
+          })
+          .attr("d", d => barPath(x(d.name), x.bandwidth(), 0))
+          .on("mouseover", (event, d) => {
+            tooltip.style("opacity", 1).html(`${d.name}: ${d.value}`);
+          })
+          .on("mousemove", (event) => {
+            tooltip.style("left", (event.pageX + 10) + "px")
+                   .style("top", (event.pageY - 20) + "px");
+          })
+          .on("mouseout", () => {
+            tooltip.style("opacity", 0);
+          }),
+        update => update,
+        exit => exit.transition().duration(dur)
+          .attr("opacity", 0)
+          .remove()
+      )
+      .classed("muted", d => scene.highlight !== null && d.name !== scene.highlight)
+      .transition().duration(dur)
+      .attrTween("d", function (d) {
+        const from = this._state || { x: x(d.name), w: x.bandwidth(), v: 0 };
+        const to = { x: x(d.name), w: x.bandwidth(), v: d.value };
+        const i = d3.interpolateObject(from, to);
+        return t => {
+          const s = i(t);
+          this._state = s;
+          return barPath(s.x, s.w, s.v);
+        };
+      });
+
+    renderAnnotation(scene, rows, dur);
+    renderControls();
+  }
+
+  // Annotation: a dashed leader above the called-out bar plus its label.
+  function renderAnnotation(scene, rows, dur) {
+    const target = scene.annotation
+      ? rows.find(d => d.name === scene.annotation.key)
+      : null;
+
+    const shown = target ? [target] : [];
+
+    const g = annotationG.selectAll("g.annotation")
+      .data(shown, d => d.name)
+      .join(
+        enter => {
+          const gEnter = enter.append("g").attr("class", "annotation").attr("opacity", 0);
+          gEnter.append("line").attr("class", "annotation-line");
+          gEnter.append("text").attr("class", "annotation-text").attr("text-anchor", "middle");
+          return gEnter;
+        },
+        update => update,
+        exit => exit.transition().duration(dur).attr("opacity", 0).remove()
+      );
+
+    g.select("line")
+      .transition().duration(dur)
+      .attr("x1", d => x(d.name) + x.bandwidth() / 2)
+      .attr("x2", d => x(d.name) + x.bandwidth() / 2)
+      .attr("y1", d => y(d.value) - 6)
+      .attr("y2", d => y(d.value) - 18);
+
+    g.select("text")
+      .text(d => scene.annotation.text || `${d.name}: ${d.value}`)
+      .transition().duration(dur)
+      .attr("x", d => x(d.name) + x.bandwidth() / 2)
+      .attr("y", d => y(d.value) - 24);
+
+    g.transition().duration(dur).attr("opacity", 1);
+  }
+
+  // ---- controls ----
+  function renderControls() {
+    d3.select("#prev").property("disabled", sceneIndex === 0);
+    d3.select("#next").property("disabled", sceneIndex === scenes.length - 1);
+    d3.select("#scene-progress").text(`Scene ${sceneIndex + 1} of ${scenes.length}`);
+
+    d3.select("#scene-dots").selectAll("button.dot")
+      .data(scenes)
+      .join(enter => enter.append("button")
+        .attr("class", "dot")
+        .attr("type", "button")
+        .on("click", (event, d) => goTo(scenes.indexOf(d))))
+      .attr("aria-label", (d, i) => `Go to scene ${i + 1}`)
+      .classed("active", (d, i) => i === sceneIndex);
+  }
+
+  function goTo(i) {
+    const next = Math.max(0, Math.min(scenes.length - 1, i));
+    if (next === sceneIndex) return;
+    sceneIndex = next;
+    render(false);
+  }
+
+  d3.select("#next").on("click", () => goTo(sceneIndex + 1));
+  d3.select("#prev").on("click", () => goTo(sceneIndex - 1));
+
+  d3.select("body").on("keydown", (event) => {
+    if (event.key === "ArrowRight") goTo(sceneIndex + 1);
+    if (event.key === "ArrowLeft") goTo(sceneIndex - 1);
+  });
+
+  render(true);
+</script>
+
+</body>
+</html>
