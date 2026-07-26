@@ -371,7 +371,7 @@
       .join(
         enter => {
           const gEnter = enter.append("g").attr("class", "annotation").attr("opacity", 0);
-          gEnter.append("line").attr("class", "annotation-line");
+          // gEnter.append("line").attr("class", "annotation-line");
           gEnter.append("text").attr("class", "annotation-text").attr("text-anchor", "middle");
           return gEnter;
         },
@@ -379,7 +379,7 @@
         exit => exit.transition().duration(dur).attr("opacity", 0).remove()
       );
 
-    g.select("text").text(label);
+    // g.select("text").text(label);
     g.transition().duration(dur).attr("opacity", 1);
 
     return g;
