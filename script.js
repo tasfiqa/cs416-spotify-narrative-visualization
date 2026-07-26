@@ -1,0 +1,313 @@
+const scenes = [
+  {
+    title: "January 2026",
+    artists: () => d3.csv("data/preprocessed_data/artists_1_2026.csv", d3.autoType),
+    tracks: () => d3.csv("data/preprocessed_data/tracks_1_2026.csv", d3.autoType),
+  },
+  {
+    title: "February 2026",
+    artists: () => d3.csv("data/preprocessed_data/artists_2_2026.csv", d3.autoType),
+    tracks: () => d3.csv("data/preprocessed_data/tracks_2_2026.csv", d3.autoType),
+  },
+  {
+    title: "March 2026",
+    artists: () => d3.csv("data/preprocessed_data/artists_3_2026.csv", d3.autoType),
+    tracks: () => d3.csv("data/preprocessed_data/tracks_3_2026.csv", d3.autoType),
+  },
+  {
+    title: "April 2026",
+    artists: () => d3.csv("data/preprocessed_data/artists_4_2026.csv", d3.autoType),
+    tracks: () => d3.csv("data/preprocessed_data/tracks_4_2026.csv", d3.autoType),
+  },
+  {
+    title: "May 2026",
+    artists: () => d3.csv("data/preprocessed_data/artists_5_2026.csv", d3.autoType),
+    tracks: () => d3.csv("data/preprocessed_data/tracks_5_2026.csv", d3.autoType),
+  },
+  {
+    title: "June 2026",
+    artists: () => d3.csv("data/preprocessed_data/artists_6_2026.csv", d3.autoType),
+    tracks: () => d3.csv("data/preprocessed_data/tracks_6_2026.csv", d3.autoType),
+  },
+  {
+    title: "July 2026",
+    artists: () => d3.csv("data/preprocessed_data/artists_7_2026.csv", d3.autoType),
+    tracks: () => d3.csv("data/preprocessed_data/tracks_7_2026.csv", d3.autoType),
+  },
+];
+
+// Populated by loadScene() before the first render: sceneData[i] = { top, leader, topTrack, subtitle }
+const sceneData = new Array(scenes.length).fill(null);
+
+let sceneIndex = 0;
+const DURATION = 750;
+TOP_N = 12
+
+function truncate(text, max) {
+  return text.length > max ? text.slice(0, max - 1) + "…" : text;
+}
+
+function escapeHtml(text) {
+  return text.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+}
+
+// The artists CSV stores each artist's tracks as a Python set repr, e.g.
+// {'Shiva', 'Bear'} or, when a title contains an apostrophe, {"It's Over"}.
+// Pull out each quoted element regardless of which quote character wraps it.
+function parseTrackSet(raw) {
+  if (!raw || !raw.length) return [];
+  return [...raw].sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed));
+}
+
+// Load one month's artists + tracks, and derive everything a scene needs to render.
+async function loadScene(i) {
+  const [artists, tracks] = await Promise.all([scenes[i].artists(), scenes[i].tracks()]);
+
+  const top = [...artists]
+    .sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed))
+    .slice(0, TOP_N)
+    .map(d => ({
+      ...d,
+      trackList: parseTrackSet(
+        tracks
+          .filter(t => t.artistName === d.artistName)
+          .filter(t => t.minutesPlayed >= 1)
+          .map(t => `${t.trackName} (${Math.round(t.minutesPlayed)} min)`)
+      ),
+    }));
+
+  const leader = top[0];
+  const topTrack = tracks
+    .filter(t => t.artistName === leader.artistName)
+    .sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed))[0];
+
+  const leaderMinutes = Math.round(leader.minutesPlayed);
+  const subtitle = topTrack
+    ? `${leader.artistName} led the month with ${leaderMinutes} minutes played, mostly from “${topTrack.trackName}.”`
+    : `${leader.artistName} led the month with ${leaderMinutes} minutes played.`;
+
+  sceneData[i] = { top, leader, topTrack, subtitle };
+  return sceneData[i];
+}
+
+// ---- dimensions ----
+// No axes — position carries no meaning here, only the force layout keeping
+// bubbles from overlapping. The canvas is set in a fixed coordinate system,
+// then scaled to fill the page via the SVG's viewBox (see below) so it grows
+// with the browser window instead of staying pinned to one pixel size.
+const margin = { top: 50, right: 20, bottom: 20, left: 20 };
+const width = 1100 - margin.left - margin.right;
+const height = 640 - margin.top - margin.bottom;
+const totalWidth = width + margin.left + margin.right;
+const totalHeight = height + margin.top + margin.bottom;
+const maxRadius = Math.min(width, height) / 6;
+d3.select("#controls").style("max-width", totalWidth + "px");
+
+// ---- svg setup ----
+const svg = d3.select("#chart")
+  .attr("viewBox", `0 0 ${totalWidth} ${totalHeight}`)
+  .attr("preserveAspectRatio", "xMidYMid meet")
+  .style("max-width", totalWidth + "px")
+  .append("g")
+  .attr("transform", `translate(${margin.left},${margin.top})`);
+
+// ---- scales ----
+// r's domain is fixed once, after every month has loaded, so a bubble of a
+// given size always means the same number of minutes across every scene. Area,
+// not radius, scales with value — hence scaleSqrt, not scaleLinear.
+const r = d3.scaleSqrt()
+  .range([6, maxRadius]);
+
+// ---- static layers (drawn once, updated per scene) ----
+const bubblesG = svg.append("g");
+const annotationG = svg.append("g");
+
+// ---- tooltip ----
+const tooltip = d3.select(".tooltip");
+
+// ---- force layout ----
+// No meaningful x/y mapping — charge + collision just spread bubbles apart so
+// none overlap, and center pulls the cluster to the middle of the canvas.
+const simulation = d3.forceSimulation()
+  .force("charge", d3.forceManyBody().strength(5))
+  .force("center", d3.forceCenter(width / 2, height / 2))
+  .force("collide", d3.forceCollide(d => r(d.minutesPlayed) + 2));
+
+// ---- render one scene ----
+function render(instant) {
+  const scene = scenes[sceneIndex];
+  const cache = sceneData[sceneIndex];
+  const rows = cache.top;
+  const dur = instant ? 0 : DURATION;
+
+  d3.select("#scene-title").text(scene.title);
+  d3.select("#scene-subtitle").text(cache.subtitle);
+
+  // Nodes entering for the first time start unpositioned (undefined x/y) so
+  // the simulation drops them in fresh; nodes reused from a prior visit to
+  // this scene keep whatever x/y they settled at last time.
+  const bubbleSel = bubblesG.selectAll("circle.bubble")
+    .data(rows, d => d.artistName)
+    .join(
+      enter => enter.append("circle")
+        .attr("class", "bubble")
+        .attr("r", 0)
+        .on("mouseover", (event, d) => {
+          const list = d.trackList.length
+            ? `<ul>${d.trackList.map(t => `<li>${escapeHtml(t)}</li>`).join("")}</ul>`
+            : "<em>No tracks recorded</em>";
+          tooltip.style("opacity", 1).html(`<strong>${escapeHtml(d.artistName)}</strong>${list}`);
+        })
+        .on("mousemove", (event) => {
+          tooltip.style("left", (event.pageX + 10) + "px")
+                 .style("top", (event.pageY - 20) + "px");
+        })
+        .on("mouseout", () => {
+          tooltip.style("opacity", 0);
+        }),
+      update => update,
+      exit => exit.transition().duration(dur)
+        .attr("r", 0)
+        .attr("opacity", 0)
+        .remove()
+    )
+    .classed("muted", d => d.artistName !== cache.leader.artistName);
+
+  bubbleSel.transition().duration(dur).attr("r", d => r(d.minutesPlayed));
+
+  // Direct value label inside each bubble, but only where it actually fits.
+  const valueSel = bubblesG.selectAll("text.bubble-value")
+    .data(rows, d => d.artistName)
+    .join(
+      enter => enter.append("text")
+        .attr("class", "bubble-value")
+        .attr("dy", "0.32em")
+        .attr("opacity", 0),
+      update => update,
+      exit => exit.transition().duration(dur).attr("opacity", 0).remove()
+    )
+    .text(d => d.artistName)
+    .classed("muted", d => d.artistName !== cache.leader.artistName);
+
+  valueSel.transition().duration(dur)
+    .attr("opacity", d => r(d.minutesPlayed) >= 16 ? 1 : 0);
+
+  // Artist name above the bubble — the only identity cue now that there's no axis.
+  const nameSel = bubblesG.selectAll("text.bubble-name")
+    .data(rows, d => d.artistName)
+    .join(
+      enter => enter.append("text")
+        .attr("class", "bubble-name")
+        .attr("opacity", 0),
+      update => update,
+      exit => exit.transition().duration(dur).attr("opacity", 0).remove()
+    )
+    // .text(d => truncate(d.artistName, 16))
+    .classed("muted", d => d.artistName !== cache.leader.artistName);
+
+  nameSel.transition().duration(dur)
+    .attr("opacity", d => r(d.minutesPlayed) >= 22 ? 1 : 0);
+
+  const annotationSel = renderAnnotation(cache, rows, dur);
+  renderControls();
+
+  // ---- force layout ----
+  simulation
+    .nodes(rows)
+    .alpha(1)
+    .alphaDecay(0.02)
+    .on("tick", () => {
+      bubbleSel
+        .attr("cx", d => d.x)
+        .attr("cy", d => d.y);
+      valueSel
+        .attr("x", d => d.x)
+        .attr("y", d => d.y);
+      nameSel
+        .attr("x", d => d.x)
+        .attr("y", d => d.y - r(d.minutesPlayed) - 6);
+      annotationSel.select("line")
+        .attr("x1", d => d.x)
+        .attr("x2", d => d.x)
+        .attr("y1", d => d.y - r(d.minutesPlayed) - 6)
+        .attr("y2", d => d.y - r(d.minutesPlayed) - 18);
+      annotationSel.select("text")
+        .attr("x", d => d.x)
+        .attr("y", d => d.y - r(d.minutesPlayed) - 24);
+    })
+    .restart();
+}
+
+// Annotation: a dashed leader above the top artist's bubble, naming their top track.
+// Position is driven by the simulation's tick handler; this only owns content/opacity.
+function renderAnnotation(cache, rows, dur) {
+  const target = rows.find(d => d.artistName === cache.leader.artistName);
+  const label = cache.topTrack ? truncate(`Top track: ${cache.topTrack.trackName}`, 34) : "Top artist";
+  const shown = target ? [target] : [];
+
+  const g = annotationG.selectAll("g.annotation")
+    .data(shown, d => d.artistName)
+    .join(
+      enter => {
+        const gEnter = enter.append("g").attr("class", "annotation").attr("opacity", 0);
+        // gEnter.append("line").attr("class", "annotation-line");
+        gEnter.append("text").attr("class", "annotation-text").attr("text-anchor", "middle");
+        return gEnter;
+      },
+      update => update,
+      exit => exit.transition().duration(dur).attr("opacity", 0).remove()
+    );
+
+  // g.select("text").text(label);
+  g.transition().duration(dur).attr("opacity", 1);
+
+  return g;
+}
+
+// ---- controls ----
+function renderControls() {
+  d3.select("#prev").property("disabled", sceneIndex === 0);
+  d3.select("#next").property("disabled", sceneIndex === scenes.length - 1);
+  d3.select("#scene-progress").text(`Scene ${sceneIndex + 1} of ${scenes.length}`);
+
+  d3.select("#scene-dots").selectAll("button.dot")
+    .data(scenes)
+    .join(enter => enter.append("button")
+      .attr("class", "dot")
+      .attr("type", "button")
+      .on("click", (event, d) => goTo(scenes.indexOf(d))))
+    .attr("aria-label", (d, i) => `Go to scene ${i + 1}`)
+    .classed("active", (d, i) => i === sceneIndex);
+}
+
+function goTo(i) {
+  const next = Math.max(0, Math.min(scenes.length - 1, i));
+  if (next === sceneIndex || sceneData[next] === null) return;
+  sceneIndex = next;
+  render(false);
+}
+
+d3.select("#next").on("click", () => goTo(sceneIndex + 1));
+d3.select("#prev").on("click", () => goTo(sceneIndex - 1));
+
+d3.select("body").on("keydown", (event) => {
+  if (event.key === "ArrowRight") goTo(sceneIndex + 1);
+  if (event.key === "ArrowLeft") goTo(sceneIndex - 1);
+});
+
+// ---- boot ----
+// Preload every month up front (small files) so nav between scenes never has
+// to wait on a fetch, then fix the radius scale to the largest bubble across
+// all of them so size stays comparable from scene to scene.
+(async function boot() {
+  d3.select("#scene-title").text("Loading…");
+  d3.select("#prev").property("disabled", true);
+  d3.select("#next").property("disabled", true);
+
+  await Promise.all(scenes.map((_, i) => loadScene(i)));
+
+  const globalMax = d3.max(sceneData, s => d3.max(s.top, d => d.minutesPlayed));
+  r.domain([0, globalMax]);
+
+  render(true);
+})();
