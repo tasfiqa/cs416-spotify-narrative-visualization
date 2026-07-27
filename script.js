@@ -1,47 +1,61 @@
+function readCsv(file_path){
+    return d3.csv(file_path, d3.autoType)
+}
+
+function getSceneObj(month, year) {
+    const monthToIndex = {
+        January: 1,
+        February: 2,
+        March: 3,
+        April: 4,
+        May: 5,
+        June: 6,
+        July: 7,
+        August: 8,
+        September: 9,
+        October: 10,
+        November: 11,
+        December: 12,
+        };
+
+    const index = monthToIndex[month];
+    if (!index) {
+        throw new Error(`Unknown month: ${month}`);
+    }
+    
+    const artists_file_name = `artists_${index}_${year}.csv`;
+    const tracks_file_name = `tracks_${index}_${year}.csv`;
+
+    const artists_file_path = `data/preprocessed_data/${artists_file_name}`;
+    const tracks_file_path = `data/preprocessed_data/${tracks_file_name}`;
+    return {
+        title: `${month} ${year}`,
+        artists: readCsv(artists_file_path),
+        tracks:  readCsv(tracks_file_path)
+    };
+}
+
 const scenes = [
-  {
-    title: "January 2026",
-    artists: () => d3.csv("data/preprocessed_data/artists_1_2026.csv", d3.autoType),
-    tracks: () => d3.csv("data/preprocessed_data/tracks_1_2026.csv", d3.autoType),
-  },
-  {
-    title: "February 2026",
-    artists: () => d3.csv("data/preprocessed_data/artists_2_2026.csv", d3.autoType),
-    tracks: () => d3.csv("data/preprocessed_data/tracks_2_2026.csv", d3.autoType),
-  },
-  {
-    title: "March 2026",
-    artists: () => d3.csv("data/preprocessed_data/artists_3_2026.csv", d3.autoType),
-    tracks: () => d3.csv("data/preprocessed_data/tracks_3_2026.csv", d3.autoType),
-  },
-  {
-    title: "April 2026",
-    artists: () => d3.csv("data/preprocessed_data/artists_4_2026.csv", d3.autoType),
-    tracks: () => d3.csv("data/preprocessed_data/tracks_4_2026.csv", d3.autoType),
-  },
-  {
-    title: "May 2026",
-    artists: () => d3.csv("data/preprocessed_data/artists_5_2026.csv", d3.autoType),
-    tracks: () => d3.csv("data/preprocessed_data/tracks_5_2026.csv", d3.autoType),
-  },
-  {
-    title: "June 2026",
-    artists: () => d3.csv("data/preprocessed_data/artists_6_2026.csv", d3.autoType),
-    tracks: () => d3.csv("data/preprocessed_data/tracks_6_2026.csv", d3.autoType),
-  },
-  {
-    title: "July 2026",
-    artists: () => d3.csv("data/preprocessed_data/artists_7_2026.csv", d3.autoType),
-    tracks: () => d3.csv("data/preprocessed_data/tracks_7_2026.csv", d3.autoType),
-  },
+    getSceneObj("July", 2025),
+    getSceneObj("August", 2025),
+    getSceneObj("September", 2025),
+    getSceneObj("October", 2025),
+    getSceneObj("November", 2025),
+    getSceneObj("December", 2025),
+    getSceneObj("January", 2026),
+    getSceneObj("February", 2026),
+    getSceneObj("March", 2026),
+    getSceneObj("April", 2026),
+    getSceneObj("May", 2026),
+    getSceneObj("June", 2026),
+    getSceneObj("July", 2026),
 ];
 
-// Populated by loadScene() before the first render: sceneData[i] = { top, leader, topTrack, subtitle }
+// Populated by loadScene() before the first render: sceneData[i] = { topArtist, leaderArtist, topTrack, subtitle }
 const sceneData = new Array(scenes.length).fill(null);
 
 let sceneIndex = 0;
 const DURATION = 750;
-TOP_N = 12
 
 function truncate(text, max) {
   return text.length > max ? text.slice(0, max - 1) + "…" : text;
@@ -61,32 +75,43 @@ function parseTrackSet(raw) {
 
 // Load one month's artists + tracks, and derive everything a scene needs to render.
 async function loadScene(i) {
-  const [artists, tracks] = await Promise.all([scenes[i].artists(), scenes[i].tracks()]);
+  const [artists, tracks] = await Promise.all([scenes[i].artists, scenes[i].tracks]);
 
-  const top = [...artists]
+  // for all artists, fetch the top tracks for each 
+  const topArtist = [...artists]
     .sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed))
-    .slice(0, TOP_N)
+    .slice(0, 25)
     .map(d => ({
       ...d,
       trackList: parseTrackSet(
         tracks
           .filter(t => t.artistName === d.artistName)
           .filter(t => t.minutesPlayed >= 1)
+          .slice(0, 10) // keep top 10 songs for each artist
           .map(t => `${t.trackName} (${Math.round(t.minutesPlayed)} min)`)
       ),
     }));
 
-  const leader = top[0];
-  const topTrack = tracks
-    .filter(t => t.artistName === leader.artistName)
-    .sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed))[0];
+  const leaderArtist = topArtist[0];
+  const topTracks = tracks
+    .sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed))
+    .slice(0, 25);
+  
+  const totalMinutesPlayed = d3.sum(tracks, t => t.minutesPlayed);
 
-  const leaderMinutes = Math.round(leader.minutesPlayed);
-  const subtitle = topTrack
-    ? `${leader.artistName} led the month with ${leaderMinutes} minutes played, mostly from “${topTrack.trackName}.”`
-    : `${leader.artistName} led the month with ${leaderMinutes} minutes played.`;
+  const topTrackFromArtist = topTracks.filter(t => t.artistName == leaderArtist.artistName)[0];
+  const leaderMinutes = Math.round(leaderArtist.minutesPlayed);
+  const subtitle = `Total Monthly Playtime: ${Math.round(totalMinutesPlayed)} min<br>
+  ${leaderArtist.artistName} led the month with ${leaderMinutes} minutes played, mostly from "${topTrackFromArtist.trackName}."`;
+  
 
-  sceneData[i] = { top, leader, topTrack, subtitle };
+  sceneData[i] = {
+    topArtist: topArtist,
+    leaderArtist: leaderArtist,
+    topTracks: topTracks,
+    topTrack: topTrackFromArtist,
+    subtitle: subtitle,
+  };
   return sceneData[i];
 }
 
@@ -100,8 +125,15 @@ const width = 1100 - margin.left - margin.right;
 const height = 640 - margin.top - margin.bottom;
 const totalWidth = width + margin.left + margin.right;
 const totalHeight = height + margin.top + margin.bottom;
-const maxRadius = Math.min(width, height) / 6;
 d3.select("#controls").style("max-width", totalWidth + "px");
+
+// The right side of the canvas is reserved for the top-tracks sidebar drawn in
+// renderAnnotation(). Bubbles are confined to chartWidth (not the full width)
+// so the force layout never places one underneath the sidebar.
+const sidebarWidth = 300;
+const sidebarGap = 20;
+const chartWidth = width - sidebarWidth - sidebarGap;
+const maxRadius = Math.min(chartWidth, height) / 4;
 
 // ---- svg setup ----
 const svg = d3.select("#chart")
@@ -110,6 +142,7 @@ const svg = d3.select("#chart")
   .style("max-width", totalWidth + "px")
   .append("g")
   .attr("transform", `translate(${margin.left},${margin.top})`);
+
 
 // ---- scales ----
 // r's domain is fixed once, after every month has loaded, so a bubble of a
@@ -130,18 +163,19 @@ const tooltip = d3.select(".tooltip");
 // none overlap, and center pulls the cluster to the middle of the canvas.
 const simulation = d3.forceSimulation()
   .force("charge", d3.forceManyBody().strength(5))
-  .force("center", d3.forceCenter(width / 2, height / 2))
+  .force("center", d3.forceCenter(chartWidth / 2, height / 2))
   .force("collide", d3.forceCollide(d => r(d.minutesPlayed) + 2));
 
 // ---- render one scene ----
 function render(instant) {
   const scene = scenes[sceneIndex];
   const cache = sceneData[sceneIndex];
-  const rows = cache.top;
+  const rows = cache.topArtist;
   const dur = instant ? 0 : DURATION;
 
+  d3.select("#dashboard-title").text("Spotify Music Dashboard");
   d3.select("#scene-title").text(scene.title);
-  d3.select("#scene-subtitle").text(cache.subtitle);
+  d3.select("#scene-subtitle").html(cache.subtitle);
 
   // Nodes entering for the first time start unpositioned (undefined x/y) so
   // the simulation drops them in fresh; nodes reused from a prior visit to
@@ -156,7 +190,7 @@ function render(instant) {
           const list = d.trackList.length
             ? `<ul>${d.trackList.map(t => `<li>${escapeHtml(t)}</li>`).join("")}</ul>`
             : "<em>No tracks recorded</em>";
-          tooltip.style("opacity", 1).html(`<strong>${escapeHtml(d.artistName)}</strong>${list}`);
+          tooltip.style("opacity", 1).html(`<strong>${escapeHtml(d.artistName)} (${Math.round(d.minutesPlayed)} min)</strong>${list}`);
         })
         .on("mousemove", (event) => {
           tooltip.style("left", (event.pageX + 10) + "px")
@@ -171,7 +205,7 @@ function render(instant) {
         .attr("opacity", 0)
         .remove()
     )
-    .classed("muted", d => d.artistName !== cache.leader.artistName);
+    .classed("muted", d => d.artistName !== cache.leaderArtist.artistName);
 
   bubbleSel.transition().duration(dur).attr("r", d => r(d.minutesPlayed));
 
@@ -187,7 +221,7 @@ function render(instant) {
       exit => exit.transition().duration(dur).attr("opacity", 0).remove()
     )
     .text(d => d.artistName)
-    .classed("muted", d => d.artistName !== cache.leader.artistName);
+    .classed("muted", d => d.artistName !== cache.leaderArtist.artistName);
 
   valueSel.transition().duration(dur)
     .attr("opacity", d => r(d.minutesPlayed) >= 16 ? 1 : 0);
@@ -202,13 +236,12 @@ function render(instant) {
       update => update,
       exit => exit.transition().duration(dur).attr("opacity", 0).remove()
     )
-    // .text(d => truncate(d.artistName, 16))
-    .classed("muted", d => d.artistName !== cache.leader.artistName);
+    .classed("muted", d => d.artistName !== cache.leaderArtist.artistName);
 
   nameSel.transition().duration(dur)
     .attr("opacity", d => r(d.minutesPlayed) >= 22 ? 1 : 0);
 
-  const annotationSel = renderAnnotation(cache, rows, dur);
+  const annotationSel = renderAnnotation(cache);
   renderControls();
 
   // ---- force layout ----
@@ -226,42 +259,47 @@ function render(instant) {
       nameSel
         .attr("x", d => d.x)
         .attr("y", d => d.y - r(d.minutesPlayed) - 6);
-      annotationSel.select("line")
-        .attr("x1", d => d.x)
-        .attr("x2", d => d.x)
-        .attr("y1", d => d.y - r(d.minutesPlayed) - 6)
-        .attr("y2", d => d.y - r(d.minutesPlayed) - 18);
-      annotationSel.select("text")
-        .attr("x", d => d.x)
-        .attr("y", d => d.y - r(d.minutesPlayed) - 24);
     })
     .restart();
 }
 
-// Annotation: a dashed leader above the top artist's bubble, naming their top track.
-// Position is driven by the simulation's tick handler; this only owns content/opacity.
-function renderAnnotation(cache, rows, dur) {
-  const target = rows.find(d => d.artistName === cache.leader.artistName);
-  const label = cache.topTrack ? truncate(`Top track: ${cache.topTrack.trackName}`, 34) : "Top artist";
-  const shown = target ? [target] : [];
+function renderAnnotation(cache){
+    // annotation setup for top tracks for the month
+    const sidebarPadding = 10;
+    const sidebarX = chartWidth + sidebarGap;
+    const topTracks = cache.topTracks;
+    const sideBarheight = height - 70;
 
-  const g = annotationG.selectAll("g.annotation")
-    .data(shown, d => d.artistName)
-    .join(
-      enter => {
-        const gEnter = enter.append("g").attr("class", "annotation").attr("opacity", 0);
-        // gEnter.append("line").attr("class", "annotation-line");
-        gEnter.append("text").attr("class", "annotation-text").attr("text-anchor", "middle");
-        return gEnter;
-      },
-      update => update,
-      exit => exit.transition().duration(dur).attr("opacity", 0).remove()
-    );
+    const box = svg.append("rect")
+        .attr("x", sidebarX)
+        .attr("y", 0)
+        .attr("width", sidebarWidth)
+        .attr("height", sideBarheight)
+        .attr("rx", 10)
+        .attr("fill", "#f0f0f0")   // light grey background
+        .attr("stroke", "#ccc")    // optional subtle border
+        .attr("stroke-width", 1)
+    ;
 
-  // g.select("text").text(label);
-  g.transition().duration(dur).attr("opacity", 1);
+    svg.append("text")
+        .attr("class", "sidebar-title")
+        .attr("x", sidebarX + sidebarPadding)
+        .attr("y", 24)
+        .attr("font-size", "14px")
+        .attr("font-weight", "600")
+        .attr("fill", "#333")
+        .text("Top Tracks this Month");
 
-  return g;
+    svg.selectAll(".track-list-label")
+        .data(topTracks)
+        .join("text")
+        .attr("class", "track-label")
+        .attr("x", sidebarX + sidebarPadding)
+        .attr("y", (d, i) => 50 + i * 18)  // stack each line vertically, below the title
+        .attr("font-size", "12px")
+        .attr("fill", "#333")
+        .text(track => `${truncate(track.trackName, 20)} - ${truncate(track.artistName, 20)}`);
+
 }
 
 // ---- controls ----
@@ -306,7 +344,7 @@ d3.select("body").on("keydown", (event) => {
 
   await Promise.all(scenes.map((_, i) => loadScene(i)));
 
-  const globalMax = d3.max(sceneData, s => d3.max(s.top, d => d.minutesPlayed));
+  const globalMax = d3.max(sceneData, s => d3.max(s.topArtist, d => d.minutesPlayed));
   r.domain([0, globalMax]);
 
   render(true);
