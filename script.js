@@ -92,9 +92,6 @@ function render(instant) {
   d3.select("#scene-title").text(scene.title);
   d3.select("#scene-subtitle").html(cache.subtitle);
 
-  // Nodes entering for the first time start unpositioned (undefined x/y) so
-  // the simulation drops them in fresh; nodes reused from a prior visit to
-  // this scene keep whatever x/y they settled at last time.
   const bubbleSel = bubblesG.selectAll("circle.bubble")
     .data(rows, d => d.artistName)
     .join(
@@ -183,40 +180,47 @@ function render(instant) {
 
 function renderAnnotation(cache){
     // annotation setup for top tracks for the month
-    const sidebarPadding = 10;
+    const sidebarPadding = 8;
     const sidebarX = chartWidth + sidebarGap;
     const topTracks = cache.topTracks;
-    const sideBarheight = height - 70;
+    const rowHeight = 13;
+    const listStartY = 34;
+    const sideBarheight = listStartY + topTracks.length * rowHeight;
 
-    const box = svg.append("rect")
+    const box = svg.selectAll("rect.sidebar-box")
+        .data([null])
+        .join("rect")
+        .attr("class", "sidebar-box")
         .attr("x", sidebarX)
         .attr("y", 0)
         .attr("width", sidebarWidth)
         .attr("height", sideBarheight)
-        .attr("rx", 10)
-        .attr("fill", "#f0f0f0")   // light grey background
-        .attr("stroke", "#ccc")    // optional subtle border
+        .attr("rx", 8)
+        .attr("fill", "#f0f0f0")
+        .attr("stroke", "#ccc")
         .attr("stroke-width", 1)
     ;
 
-    svg.append("text")
+    svg.selectAll("text.sidebar-title")
+        .data([null])
+        .join("text")
         .attr("class", "sidebar-title")
         .attr("x", sidebarX + sidebarPadding)
-        .attr("y", 24)
-        .attr("font-size", "14px")
+        .attr("y", 18)
+        .attr("font-size", "12px")
         .attr("font-weight", "600")
         .attr("fill", "#333")
         .text("Top Tracks this Month");
 
-    svg.selectAll(".track-list-label")
+    svg.selectAll(".track-label")
         .data(topTracks)
         .join("text")
         .attr("class", "track-label")
         .attr("x", sidebarX + sidebarPadding)
-        .attr("y", (d, i) => 50 + i * 18)
-        .attr("font-size", "12px")
+        .attr("y", (d, i) => listStartY + i * rowHeight)
+        .attr("font-size", "10px")
         .attr("fill", "#333")
-        .text(track => `${truncate(track.trackName, 20)} - ${truncate(track.artistName, 20)}`);
+        .text(track => `${truncate(track.trackName, 18)} - ${truncate(track.artistName, 18)}`);
 
 }
 
@@ -264,16 +268,16 @@ const sceneData = new Array(scenes.length).fill(null);
 let sceneIndex = 0;
 const DURATION = 750;
 
-const margin = { top: 50, right: 20, bottom: 20, left: 20 };
-const width = 1100 - margin.left - margin.right;
-const height = 640 - margin.top - margin.bottom;
+const margin = { top: 36, right: 20, bottom: 14, left: 14 };
+const width = 820 - margin.left - margin.right;
+const height = 460 - margin.top - margin.bottom;
 const totalWidth = width + margin.left + margin.right;
 const totalHeight = height + margin.top + margin.bottom;
 d3.select("#controls").style("max-width", totalWidth + "px");
 
 // right side for sidebar with top tracks
-const sidebarWidth = 300;
-const sidebarGap = 20;
+const sidebarWidth = 220;
+const sidebarGap = 16;
 const chartWidth = width - sidebarWidth - sidebarGap;
 const maxRadius = Math.min(chartWidth, height) / 4;
 
