@@ -98,20 +98,19 @@ async function loadScene(i) {
     .slice(0, 25)
     ;
 
-  const topTrack = topTracks[0];
-
+  const topTrackFromArtist = topTracks.filter(t => t.artistName == leaderArtist.artistName)[0];
   const leaderMinutes = Math.round(leaderArtist.minutesPlayed);
-  const subtitle = topTrack
-    ? `${leaderArtist.artistName} led the month with ${leaderMinutes} minutes played, mostly from “${topTrack.trackName}.”`
+  const subtitle = topTrackFromArtist
+    ? `${leaderArtist.artistName} led the month with ${leaderMinutes} minutes played, mostly from “${topTrackFromArtist.trackName}.”`
     : `${leaderArtist.artistName} led the month with ${leaderMinutes} minutes played.`;
 
 
-  sceneData[i] = { 
-    topArtist, 
-    leaderArtist,
-    topTracks,
-    topTrack, 
-    subtitle 
+  sceneData[i] = {
+    topArtist: topArtist,
+    leaderArtist: leaderArtist,
+    topTracks: topTracks,
+    topTrack: topTrackFromArtist,
+    subtitle: subtitle,
   };
   return sceneData[i];
 }
@@ -264,17 +263,18 @@ function render(instant) {
     .restart();
 }
 
-function renderAnnotation(cache, rows){
+function renderAnnotation(cache){
     // annotation setup for top tracks for the month
     const sidebarPadding = 10;
     const sidebarX = chartWidth + sidebarGap;
     const topTracks = cache.topTracks;
+    const sideBarheight = height - 70;
 
     const box = svg.append("rect")
         .attr("x", sidebarX)
         .attr("y", 0)
         .attr("width", sidebarWidth)
-        .attr("height", height)
+        .attr("height", sideBarheight)
         .attr("rx", 10)
         .attr("fill", "#f0f0f0")   // light grey background
         .attr("stroke", "#ccc")    // optional subtle border
