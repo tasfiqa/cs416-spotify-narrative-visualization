@@ -19,10 +19,6 @@ function getSceneObj(month, year) {
         };
 
     const index = monthToIndex[month];
-    if (!index) {
-        throw new Error(`Unknown month: ${month}`);
-    }
-    
     const artists_file_name = `artists_${index}_${year}.csv`;
     const tracks_file_name = `tracks_${index}_${year}.csv`;
 
@@ -35,44 +31,33 @@ function getSceneObj(month, year) {
     };
 }
 
-
 function truncate(text, max) {
-  return text.length > max ? text.slice(0, max - 1) + "…" : text;
+  if (text.length > max) {
+    return text.slice(0, max - 1) + "…";
+  } else {
+    return text;
+  }
 }
 
-function escapeHtml(text) {
-  return text.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
-}
-
-// The artists CSV stores each artist's tracks as a Python set repr, e.g.
-// {'Shiva', 'Bear'} or, when a title contains an apostrophe, {"It's Over"}.
-// Pull out each quoted element regardless of which quote character wraps it.
-function parseTrackSet(raw) {
-  if (!raw || !raw.length) return [];
-  return [...raw].sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed));
-}
-
-
-// Load one month's artists + tracks, and derive everything a scene needs to render.
+// Load one month's artists + tracks, and derive data for scene to render
 async function loadScene(i) {
   const [artists, tracks] = await Promise.all([scenes[i].artists, scenes[i].tracks]);
 
   // for all artists, fetch the top tracks for each 
-  const topArtist = [...artists]
+  const topArtists = [...artists]
     .sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed))
     .slice(0, 25)
     .map(d => ({
       ...d,
-      trackList: parseTrackSet(
-        tracks
-          .filter(t => t.artistName === d.artistName)
-          .filter(t => t.minutesPlayed >= 1)
-          .slice(0, 10) // keep top 10 songs for each artist
-          .map(t => `${t.trackName} (${Math.round(t.minutesPlayed)} min)`)
-      ),
+      trackList: tracks
+      .filter(t => t.artistName === d.artistName)
+      .filter(t => t.minutesPlayed >= 1)
+      .sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed))
+      .slice(0, 10)
+      .map(t => `${t.trackName} (${Math.round(t.minutesPlayed)} min)`),
     }));
 
-  const leaderArtist = topArtist[0];
+  const leaderArtist = topArtists[0];
   const topTracks = tracks
     .sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed))
     .slice(0, 25);
@@ -84,15 +69,15 @@ async function loadScene(i) {
   const subtitle = `Total Monthly Playtime: ${Math.round(totalMinutesPlayed)} min<br>
   ${leaderArtist.artistName} led the month with ${leaderMinutes} minutes played, mostly from "${topTrackFromArtist.trackName}."`;
   
-
   sceneData[i] = {
-    topArtist: topArtist,
+    topArtists: topArtists,
     leaderArtist: leaderArtist,
     topTracks: topTracks,
     topTrack: topTrackFromArtist,
     subtitle: subtitle,
   };
   return sceneData[i];
+
 }
 
 
@@ -100,7 +85,7 @@ async function loadScene(i) {
 function render(instant) {
   const scene = scenes[sceneIndex];
   const cache = sceneData[sceneIndex];
-  const rows = cache.topArtist;
+  const rows = cache.topArtists;
   const dur = instant ? 0 : DURATION;
 
   d3.select("#dashboard-title").text("Spotify Music Dashboard");
@@ -118,9 +103,9 @@ function render(instant) {
         .attr("r", 0)
         .on("mouseover", (event, d) => {
           const list = d.trackList.length
-            ? `<ul>${d.trackList.map(t => `<li>${escapeHtml(t)}</li>`).join("")}</ul>`
+            ? `<ul>${d.trackList.map(t => `<li>${t}</li>`).join("")}</ul>`
             : "<em>No tracks recorded</em>";
-          tooltip.style("opacity", 1).html(`<strong>${escapeHtml(d.artistName)} (${Math.round(d.minutesPlayed)} min)</strong>${list}`);
+          tooltip.style("opacity", 1).html(`<strong>${d.artistName} (${Math.round(d.minutesPlayed)} min)</strong>${list}`);
         })
         .on("mousemove", (event) => {
           tooltip.style("left", (event.pageX + 10) + "px")
@@ -129,7 +114,7 @@ function render(instant) {
         .on("mouseout", () => {
           tooltip.style("opacity", 0);
         }),
-      update => update,
+      update => update, 
       exit => exit.transition().duration(dur)
         .attr("r", 0)
         .attr("opacity", 0)
@@ -137,9 +122,11 @@ function render(instant) {
     )
     .classed("muted", d => d.artistName !== cache.leaderArtist.artistName);
 
-  bubbleSel.transition().duration(dur).attr("r", d => r(d.minutesPlayed));
+  // reset opacity of circles from old scenes
+  bubbleSel.interrupt().transition().duration(dur)
+    .attr("r", d => r(d.minutesPlayed))
+    .attr("opacity", 1);
 
-  // Direct value label inside each bubble, but only where it actually fits.
   const valueSel = bubblesG.selectAll("text.bubble-value")
     .data(rows, d => d.artistName)
     .join(
@@ -156,7 +143,7 @@ function render(instant) {
   valueSel.transition().duration(dur)
     .attr("opacity", d => r(d.minutesPlayed) >= 16 ? 1 : 0);
 
-  // Artist name above the bubble — the only identity cue now that there's no axis.
+  // artist name in bubble
   const nameSel = bubblesG.selectAll("text.bubble-name")
     .data(rows, d => d.artistName)
     .join(
@@ -175,7 +162,7 @@ function render(instant) {
   renderAnnotation(cache);
   renderControls();
 
-  // ---- force layout ----
+  // bubble chart layout
   simulation
     .nodes(rows)
     .alpha(1)
@@ -277,12 +264,6 @@ const sceneData = new Array(scenes.length).fill(null);
 let sceneIndex = 0;
 const DURATION = 750;
 
-
-// ---- dimensions ----
-// No axes — position carries no meaning here, only the force layout keeping
-// bubbles from overlapping. The canvas is set in a fixed coordinate system,
-// then scaled to fill the page via the SVG's viewBox (see below) so it grows
-// with the browser window instead of staying pinned to one pixel size.
 const margin = { top: 50, right: 20, bottom: 20, left: 20 };
 const width = 1100 - margin.left - margin.right;
 const height = 640 - margin.top - margin.bottom;
@@ -290,15 +271,12 @@ const totalWidth = width + margin.left + margin.right;
 const totalHeight = height + margin.top + margin.bottom;
 d3.select("#controls").style("max-width", totalWidth + "px");
 
-// The right side of the canvas is reserved for the top-tracks sidebar drawn in
-// renderAnnotation(). Bubbles are confined to chartWidth (not the full width)
-// so the force layout never places one underneath the sidebar.
+// right side for sidebar with top tracks
 const sidebarWidth = 300;
 const sidebarGap = 20;
 const chartWidth = width - sidebarWidth - sidebarGap;
 const maxRadius = Math.min(chartWidth, height) / 4;
 
-// ---- svg setup ----
 const svg = d3.select("#chart")
   .attr("viewBox", `0 0 ${totalWidth} ${totalHeight}`)
   .attr("preserveAspectRatio", "xMidYMid meet")
@@ -307,21 +285,16 @@ const svg = d3.select("#chart")
   .attr("transform", `translate(${margin.left},${margin.top})`);
 
 
-// ---- scales ----
-// r's domain is fixed once, after every month has loaded, so a bubble of a
-// given size always means the same number of minutes across every scene. Area,
-// not radius, scales with value — hence scaleSqrt, not scaleLinear.
+// use radius as area grows with minutes played
 const r = d3.scaleSqrt()
   .range([6, maxRadius]);
 
-// ---- static layers (drawn once, updated per scene) ----
+// common elements
 const bubblesG = svg.append("g");
 const annotationG = svg.append("g");
-
-// ---- tooltip ----
 const tooltip = d3.select(".tooltip");
 
-// ---- force layout ----
+// bubble chart render
 const simulation = d3.forceSimulation()
   .force("charge", d3.forceManyBody().strength(5))
   .force("center", d3.forceCenter(chartWidth / 2, height / 2))
@@ -331,20 +304,17 @@ d3.select("#next").on("click", () => goTo(sceneIndex + 1));
 d3.select("#prev").on("click", () => goTo(sceneIndex - 1));
 
 
-// ---- boot ----
-// Preload every month up front (small files) so nav between scenes never has
-// to wait on a fetch, then fix the radius scale to the largest bubble across
-// all of them so size stays comparable from scene to scene.
+// boot func
 (async function boot() {
   d3.select("#scene-title").text("Loading…");
   d3.select("#prev").property("disabled", true);
   d3.select("#next").property("disabled", true);
 
+  // load scenes in advance
   await Promise.all(scenes.map((_, i) => loadScene(i)));
 
-  const globalMax = d3.max(sceneData, s => d3.max(s.topArtist, d => d.minutesPlayed));
+  const globalMax = d3.max(sceneData, s => d3.max(s.topArtists, d => d.minutesPlayed));
   r.domain([0, globalMax]);
 
   render(true);
-  
 })();
