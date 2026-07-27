@@ -35,27 +35,6 @@ function getSceneObj(month, year) {
     };
 }
 
-const scenes = [
-    getSceneObj("July", 2025),
-    getSceneObj("August", 2025),
-    getSceneObj("September", 2025),
-    getSceneObj("October", 2025),
-    getSceneObj("November", 2025),
-    getSceneObj("December", 2025),
-    getSceneObj("January", 2026),
-    getSceneObj("February", 2026),
-    getSceneObj("March", 2026),
-    getSceneObj("April", 2026),
-    getSceneObj("May", 2026),
-    getSceneObj("June", 2026),
-    getSceneObj("July", 2026),
-];
-
-// Populated by loadScene() before the first render: sceneData[i] = { topArtist, leaderArtist, topTrack, subtitle }
-const sceneData = new Array(scenes.length).fill(null);
-
-let sceneIndex = 0;
-const DURATION = 750;
 
 function truncate(text, max) {
   return text.length > max ? text.slice(0, max - 1) + "…" : text;
@@ -72,6 +51,7 @@ function parseTrackSet(raw) {
   if (!raw || !raw.length) return [];
   return [...raw].sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed));
 }
+
 
 // Load one month's artists + tracks, and derive everything a scene needs to render.
 async function loadScene(i) {
@@ -115,56 +95,6 @@ async function loadScene(i) {
   return sceneData[i];
 }
 
-// ---- dimensions ----
-// No axes — position carries no meaning here, only the force layout keeping
-// bubbles from overlapping. The canvas is set in a fixed coordinate system,
-// then scaled to fill the page via the SVG's viewBox (see below) so it grows
-// with the browser window instead of staying pinned to one pixel size.
-const margin = { top: 50, right: 20, bottom: 20, left: 20 };
-const width = 1100 - margin.left - margin.right;
-const height = 640 - margin.top - margin.bottom;
-const totalWidth = width + margin.left + margin.right;
-const totalHeight = height + margin.top + margin.bottom;
-d3.select("#controls").style("max-width", totalWidth + "px");
-
-// The right side of the canvas is reserved for the top-tracks sidebar drawn in
-// renderAnnotation(). Bubbles are confined to chartWidth (not the full width)
-// so the force layout never places one underneath the sidebar.
-const sidebarWidth = 300;
-const sidebarGap = 20;
-const chartWidth = width - sidebarWidth - sidebarGap;
-const maxRadius = Math.min(chartWidth, height) / 4;
-
-// ---- svg setup ----
-const svg = d3.select("#chart")
-  .attr("viewBox", `0 0 ${totalWidth} ${totalHeight}`)
-  .attr("preserveAspectRatio", "xMidYMid meet")
-  .style("max-width", totalWidth + "px")
-  .append("g")
-  .attr("transform", `translate(${margin.left},${margin.top})`);
-
-
-// ---- scales ----
-// r's domain is fixed once, after every month has loaded, so a bubble of a
-// given size always means the same number of minutes across every scene. Area,
-// not radius, scales with value — hence scaleSqrt, not scaleLinear.
-const r = d3.scaleSqrt()
-  .range([6, maxRadius]);
-
-// ---- static layers (drawn once, updated per scene) ----
-const bubblesG = svg.append("g");
-const annotationG = svg.append("g");
-
-// ---- tooltip ----
-const tooltip = d3.select(".tooltip");
-
-// ---- force layout ----
-// No meaningful x/y mapping — charge + collision just spread bubbles apart so
-// none overlap, and center pulls the cluster to the middle of the canvas.
-const simulation = d3.forceSimulation()
-  .force("charge", d3.forceManyBody().strength(5))
-  .force("center", d3.forceCenter(chartWidth / 2, height / 2))
-  .force("collide", d3.forceCollide(d => r(d.minutesPlayed) + 2));
 
 // ---- render one scene ----
 function render(instant) {
@@ -232,7 +162,8 @@ function render(instant) {
     .join(
       enter => enter.append("text")
         .attr("class", "bubble-name")
-        .attr("opacity", 0),
+        .attr("opacity", 0)
+        ,
       update => update,
       exit => exit.transition().duration(dur).attr("opacity", 0).remove()
     )
@@ -241,7 +172,7 @@ function render(instant) {
   nameSel.transition().duration(dur)
     .attr("opacity", d => r(d.minutesPlayed) >= 22 ? 1 : 0);
 
-  const annotationSel = renderAnnotation(cache);
+  renderAnnotation(cache);
   renderControls();
 
   // ---- force layout ----
@@ -295,7 +226,7 @@ function renderAnnotation(cache){
         .join("text")
         .attr("class", "track-label")
         .attr("x", sidebarX + sidebarPadding)
-        .attr("y", (d, i) => 50 + i * 18)  // stack each line vertically, below the title
+        .attr("y", (d, i) => 50 + i * 18)
         .attr("font-size", "12px")
         .attr("fill", "#333")
         .text(track => `${truncate(track.trackName, 20)} - ${truncate(track.artistName, 20)}`);
@@ -314,7 +245,7 @@ function renderControls() {
       .attr("class", "dot")
       .attr("type", "button")
       .on("click", (event, d) => goTo(scenes.indexOf(d))))
-    .attr("aria-label", (d, i) => `Go to scene ${i + 1}`)
+    .text((d, i) => i+1)
     .classed("active", (d, i) => i === sceneIndex);
 }
 
@@ -325,13 +256,80 @@ function goTo(i) {
   render(false);
 }
 
+const scenes = [
+    getSceneObj("July", 2025),
+    getSceneObj("August", 2025),
+    getSceneObj("September", 2025),
+    getSceneObj("October", 2025),
+    getSceneObj("November", 2025),
+    getSceneObj("December", 2025),
+    getSceneObj("January", 2026),
+    getSceneObj("February", 2026),
+    getSceneObj("March", 2026),
+    getSceneObj("April", 2026),
+    getSceneObj("May", 2026),
+    getSceneObj("June", 2026),
+    getSceneObj("July", 2026),
+];
+
+const sceneData = new Array(scenes.length).fill(null);
+
+let sceneIndex = 0;
+const DURATION = 750;
+
+
+// ---- dimensions ----
+// No axes — position carries no meaning here, only the force layout keeping
+// bubbles from overlapping. The canvas is set in a fixed coordinate system,
+// then scaled to fill the page via the SVG's viewBox (see below) so it grows
+// with the browser window instead of staying pinned to one pixel size.
+const margin = { top: 50, right: 20, bottom: 20, left: 20 };
+const width = 1100 - margin.left - margin.right;
+const height = 640 - margin.top - margin.bottom;
+const totalWidth = width + margin.left + margin.right;
+const totalHeight = height + margin.top + margin.bottom;
+d3.select("#controls").style("max-width", totalWidth + "px");
+
+// The right side of the canvas is reserved for the top-tracks sidebar drawn in
+// renderAnnotation(). Bubbles are confined to chartWidth (not the full width)
+// so the force layout never places one underneath the sidebar.
+const sidebarWidth = 300;
+const sidebarGap = 20;
+const chartWidth = width - sidebarWidth - sidebarGap;
+const maxRadius = Math.min(chartWidth, height) / 4;
+
+// ---- svg setup ----
+const svg = d3.select("#chart")
+  .attr("viewBox", `0 0 ${totalWidth} ${totalHeight}`)
+  .attr("preserveAspectRatio", "xMidYMid meet")
+  .style("max-width", totalWidth + "px")
+  .append("g")
+  .attr("transform", `translate(${margin.left},${margin.top})`);
+
+
+// ---- scales ----
+// r's domain is fixed once, after every month has loaded, so a bubble of a
+// given size always means the same number of minutes across every scene. Area,
+// not radius, scales with value — hence scaleSqrt, not scaleLinear.
+const r = d3.scaleSqrt()
+  .range([6, maxRadius]);
+
+// ---- static layers (drawn once, updated per scene) ----
+const bubblesG = svg.append("g");
+const annotationG = svg.append("g");
+
+// ---- tooltip ----
+const tooltip = d3.select(".tooltip");
+
+// ---- force layout ----
+const simulation = d3.forceSimulation()
+  .force("charge", d3.forceManyBody().strength(5))
+  .force("center", d3.forceCenter(chartWidth / 2, height / 2))
+  .force("collide", d3.forceCollide(d => r(d.minutesPlayed) + 2));
+
 d3.select("#next").on("click", () => goTo(sceneIndex + 1));
 d3.select("#prev").on("click", () => goTo(sceneIndex - 1));
 
-d3.select("body").on("keydown", (event) => {
-  if (event.key === "ArrowRight") goTo(sceneIndex + 1);
-  if (event.key === "ArrowLeft") goTo(sceneIndex - 1);
-});
 
 // ---- boot ----
 // Preload every month up front (small files) so nav between scenes never has
@@ -348,4 +346,5 @@ d3.select("body").on("keydown", (event) => {
   r.domain([0, globalMax]);
 
   render(true);
+  
 })();

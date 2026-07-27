@@ -109,7 +109,7 @@
       margin-top: 8px;
       width: 100%;
     }
-    #controls button {
+    #controls > button {
       font: inherit;
       font-size: 14px;
       padding: 6px 14px;
@@ -118,10 +118,10 @@
       background: #fff;
       cursor: pointer;
     }
-    #controls button:hover:not(:disabled) {
+    #controls > button:hover:not(:disabled) {
       background: #f5f7fa;
     }
-    #controls button:disabled {
+    #controls > button:disabled {
       opacity: 0.4;
       cursor: default;
     }
@@ -135,16 +135,23 @@
       margin-left: auto;
     }
     .dot {
-      width: 9px;
-      height: 9px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
       border-radius: 50%;
       background: #cbd5e1;
       border: none;
       padding: 0;
       cursor: pointer;
+      font-size: 10px;
+      color: #1f2933;
+      line-height: 1;
     }
     .dot.active {
-      background: steelblue;
+      background: #9aa5b1;
+      color: #1f2933;
     }
   </style>
 </head>
