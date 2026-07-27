@@ -95,15 +95,15 @@ async function loadScene(i) {
   const leaderArtist = topArtist[0];
   const topTracks = tracks
     .sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed))
-    .slice(0, 25)
-    ;
+    .slice(0, 25);
+  
+  const totalMinutesPlayed = d3.sum(tracks, t => t.minutesPlayed);
 
   const topTrackFromArtist = topTracks.filter(t => t.artistName == leaderArtist.artistName)[0];
   const leaderMinutes = Math.round(leaderArtist.minutesPlayed);
-  const subtitle = topTrackFromArtist
-    ? `${leaderArtist.artistName} led the month with ${leaderMinutes} minutes played, mostly from “${topTrackFromArtist.trackName}.”`
-    : `${leaderArtist.artistName} led the month with ${leaderMinutes} minutes played.`;
-
+  const subtitle = `Total Monthly Playtime: ${Math.round(totalMinutesPlayed)} min<br>
+  ${leaderArtist.artistName} led the month with ${leaderMinutes} minutes played, mostly from "${topTrackFromArtist.trackName}."`;
+  
 
   sceneData[i] = {
     topArtist: topArtist,
@@ -175,7 +175,7 @@ function render(instant) {
 
   d3.select("#dashboard-title").text("Spotify Music Dashboard");
   d3.select("#scene-title").text(scene.title);
-  d3.select("#scene-subtitle").text(cache.subtitle);
+  d3.select("#scene-subtitle").html(cache.subtitle);
 
   // Nodes entering for the first time start unpositioned (undefined x/y) so
   // the simulation drops them in fresh; nodes reused from a prior visit to
