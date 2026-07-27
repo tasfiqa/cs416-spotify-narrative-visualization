@@ -56,7 +56,6 @@ const sceneData = new Array(scenes.length).fill(null);
 
 let sceneIndex = 0;
 const DURATION = 750;
-TOP_N = 30
 
 function truncate(text, max) {
   return text.length > max ? text.slice(0, max - 1) + "…" : text;
@@ -81,31 +80,36 @@ async function loadScene(i) {
   // for all artists, fetch the top tracks for each 
   const topArtist = [...artists]
     .sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed))
-    .slice(0, TOP_N)
+    .slice(0, 25)
     .map(d => ({
       ...d,
       trackList: parseTrackSet(
         tracks
           .filter(t => t.artistName === d.artistName)
           .filter(t => t.minutesPlayed >= 1)
-          .slice(0, 10)
+          .slice(0, 10) // keep top 10 songs for each artist
           .map(t => `${t.trackName} (${Math.round(t.minutesPlayed)} min)`)
       ),
     }));
 
   const leaderArtist = topArtist[0];
-  const topTrack = tracks
-    .filter(t => t.artistName === leaderArtist.artistName)
-    .sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed))[0];
+  const topTracks = tracks
+    .sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed))
+    .slice(0, 25)
+    ;
+
+  const topTrack = topTracks[0];
 
   const leaderMinutes = Math.round(leaderArtist.minutesPlayed);
   const subtitle = topTrack
     ? `${leaderArtist.artistName} led the month with ${leaderMinutes} minutes played, mostly from “${topTrack.trackName}.”`
     : `${leaderArtist.artistName} led the month with ${leaderMinutes} minutes played.`;
 
+
   sceneData[i] = { 
     topArtist, 
-    leaderArtist, 
+    leaderArtist,
+    topTracks,
     topTrack, 
     subtitle 
   };
@@ -122,8 +126,15 @@ const width = 1100 - margin.left - margin.right;
 const height = 640 - margin.top - margin.bottom;
 const totalWidth = width + margin.left + margin.right;
 const totalHeight = height + margin.top + margin.bottom;
-const maxRadius = Math.min(width, height) / 4;
 d3.select("#controls").style("max-width", totalWidth + "px");
+
+// The right side of the canvas is reserved for the top-tracks sidebar drawn in
+// renderAnnotation(). Bubbles are confined to chartWidth (not the full width)
+// so the force layout never places one underneath the sidebar.
+const sidebarWidth = 300;
+const sidebarGap = 20;
+const chartWidth = width - sidebarWidth - sidebarGap;
+const maxRadius = Math.min(chartWidth, height) / 4;
 
 // ---- svg setup ----
 const svg = d3.select("#chart")
@@ -153,7 +164,7 @@ const tooltip = d3.select(".tooltip");
 // none overlap, and center pulls the cluster to the middle of the canvas.
 const simulation = d3.forceSimulation()
   .force("charge", d3.forceManyBody().strength(5))
-  .force("center", d3.forceCenter(width / 2, height / 2))
+  .force("center", d3.forceCenter(chartWidth / 2, height / 2))
   .force("collide", d3.forceCollide(d => r(d.minutesPlayed) + 2));
 
 // ---- render one scene ----
@@ -163,6 +174,7 @@ function render(instant) {
   const rows = cache.topArtist;
   const dur = instant ? 0 : DURATION;
 
+  d3.select("#dashboard-title").text("Spotify Music Dashboard");
   d3.select("#scene-title").text(scene.title);
   d3.select("#scene-subtitle").text(cache.subtitle);
 
@@ -230,8 +242,7 @@ function render(instant) {
   nameSel.transition().duration(dur)
     .attr("opacity", d => r(d.minutesPlayed) >= 22 ? 1 : 0);
 
-//   const annotationSel = renderAnnotation(cache, rows, dur);
-//   const annotationSel = renderAnnotation(cache);
+  const annotationSel = renderAnnotation(cache);
   renderControls();
 
   // ---- force layout ----
@@ -249,51 +260,18 @@ function render(instant) {
       nameSel
         .attr("x", d => d.x)
         .attr("y", d => d.y - r(d.minutesPlayed) - 6);
-    //   annotationSel.select("line")
-    //     .attr("x1", d => d.x)
-    //     .attr("x2", d => d.x)
-    //     .attr("y1", d => d.y - r(d.minutesPlayed) - 6)
-    //     .attr("y2", d => d.y - r(d.minutesPlayed) - 18);
-    //   annotationSel.select("text")
-    //     .attr("x", d => d.x)
-    //     .attr("y", d => d.y - r(d.minutesPlayed) - 24);
     })
     .restart();
 }
 
-// Annotation: a dashed leader above the top artist's bubble, naming their top track.
-// Position is driven by the simulation's tick handler; this only owns content/opacity.
-function renderAnnotation_old(cache, rows, dur) {
-  const target = rows.find(d => d.artistName === cache.leader.artistName);
-  const label = cache.topTrack ? truncate(`Top track: ${cache.topTrack.trackName}`, 34) : "Top artist";
-  const shown = target ? [target] : [];
-
-  const g = annotationG.selectAll("g.annotation")
-    .data(shown, d => d.artistName)
-    .join(
-      enter => {
-        const gEnter = enter.append("g").attr("class", "annotation").attr("opacity", 0);
-        gEnter.append("line").attr("class", "annotation-line");
-        gEnter.append("text").attr("class", "annotation-text").attr("text-anchor", "middle");
-        return gEnter;
-      },
-      update => update,
-      exit => exit.transition().duration(dur).attr("opacity", 0).remove()
-    );
-
-//   g.select("text").text(label);
-  g.transition().duration(dur).attr("opacity", 1);
-
-  return g;
-}
-
 function renderAnnotation(cache, rows){
     // annotation setup for top tracks for the month
-    const sidebarWidth = 180;
     const sidebarPadding = 10;
+    const sidebarX = chartWidth + sidebarGap;
+    const topTracks = cache.topTracks;
 
     const box = svg.append("rect")
-        .attr("x", width - sidebarWidth)
+        .attr("x", sidebarX)
         .attr("y", 0)
         .attr("width", sidebarWidth)
         .attr("height", height)
@@ -303,20 +281,26 @@ function renderAnnotation(cache, rows){
         .attr("stroke-width", 1)
     ;
 
+    svg.append("text")
+        .attr("class", "sidebar-title")
+        .attr("x", sidebarX + sidebarPadding)
+        .attr("y", 24)
+        .attr("font-size", "14px")
+        .attr("font-weight", "600")
+        .attr("fill", "#333")
+        .text("Top Tracks this Month");
 
     svg.selectAll(".track-list-label")
-        .data(rows)
+        .data(topTracks)
         .join("text")
         .attr("class", "track-label")
-        .attr("x", width - sidebarWidth + sidebarPadding)
-        .attr("y", (d, i) => 20 + i * 18)  // stack each line vertically
+        .attr("x", sidebarX + sidebarPadding)
+        .attr("y", (d, i) => 50 + i * 18)  // stack each line vertically, below the title
         .attr("font-size", "12px")
         .attr("fill", "#333")
-        .text(d => d);
+        .text(track => `${truncate(track.trackName, 20)} - ${truncate(track.artistName, 20)}`);
 
 }
-
-
 
 // ---- controls ----
 function renderControls() {
