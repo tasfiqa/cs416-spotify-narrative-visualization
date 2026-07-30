@@ -63,7 +63,7 @@ class MusicHistory:
         df['month_name'] = df['month'].map(lambda m: calendar.month_name[m])
         df['year'] = df['endTime_dt'].dt.year
         return df
-
+    
 
     def filter_history_by_date(self, date: str):
         """
@@ -105,6 +105,10 @@ class MusicHistory:
             year=('year', 'first'),
         ).sort_values(by='minutesPlayed', ascending=False).reset_index(drop=True)
         return grouped_df
+
+    def create_annotations_for_month(self, artists, tracks):
+        pass
+
     
     def write_filtered_data(self, month: int, year: int):
         artists = self.filter_artist_by_month(month, year)
@@ -120,6 +124,11 @@ class MusicHistory:
         tracks_fp = f"tracks_{month}_{year}.csv"
         print(f"Writing {tracks_fp}")
         tracks.to_csv(f"data/preprocessed_data/{tracks_fp}", index=False)
+        annotations_fp = f"annotations_{month}_{year}.json"
+        annotations = self.create_annotations_for_month(artists, tracks)
+
+        print(f'Writing annotations')
+
 
     
 if __name__ == "__main__":

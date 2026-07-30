@@ -66,20 +66,42 @@ async function loadScene(i) {
 
   const topTrackFromArtist = topTracks.filter(t => t.artistName == leaderArtist.artistName)[0];
   const leaderMinutes = Math.round(leaderArtist.minutesPlayed);
-  const subtitle = `Total Monthly Playtime: ${Math.round(totalMinutesPlayed)} min<br>
-  ${leaderArtist.artistName} led the month with ${leaderMinutes} minutes played, mostly from "${topTrackFromArtist.trackName}."`;
+
+  const annotation = create_annotation(
+    totalMinutesPlayed, 
+    leaderArtist,
+    leaderMinutes,
+    topTrackFromArtist
+  )
+
   
+
   sceneData[i] = {
     topArtists: topArtists,
     leaderArtist: leaderArtist,
     topTracks: topTracks,
     topTrack: topTrackFromArtist,
-    subtitle: subtitle,
+    totalMinutesPlayed: totalMinutesPlayed,
+    leaderArtist: leaderArtist,
+    leaderMinutes: leaderMinutes,
+    topTrackFromArtist: topTrackFromArtist
   };
   return sceneData[i];
 
 }
 
+function create_annotation(
+  totalMinutesPlayed, 
+  leaderArtist,
+  leaderMinutes,
+  topTrackFromArtist
+){
+  const line1 = `Total Monthly Playtime: ${Math.round(totalMinutesPlayed)} min`
+  const line2 = `${leaderArtist.artistName} led the month with ${leaderMinutes} minutes played, mostly from "${topTrackFromArtist.trackName}."`;
+  const line3 = ""
+  return [line1, line2, line3].join("<br>");
+
+}
 
 // ---- render one scene ----
 function render(instant) {
@@ -90,7 +112,7 @@ function render(instant) {
 
   d3.select("#dashboard-title").text("Spotify Music Dashboard");
   d3.select("#scene-title").text(scene.title);
-  d3.select("#scene-subtitle").html(cache.subtitle);
+  d3.select("#scene-subtitle").html(cache.annotation);
 
   const bubbleSel = bubblesG.selectAll("circle.bubble")
     .data(rows, d => d.artistName)
@@ -156,7 +178,6 @@ function render(instant) {
   nameSel.transition().duration(dur)
     .attr("opacity", d => r(d.minutesPlayed) >= 22 ? 1 : 0);
 
-  renderAnnotation(cache);
   renderControls();
 
   // bubble chart layout
@@ -176,52 +197,6 @@ function render(instant) {
         .attr("y", d => d.y - r(d.minutesPlayed) - 6);
     })
     .restart();
-}
-
-function renderAnnotation(cache){
-    // annotation setup for top tracks for the month
-    const sidebarPadding = 8;
-    const sidebarX = chartWidth + sidebarGap;
-    const topTracks = cache.topTracks;
-    const rowHeight = 13;
-    const listStartY = 34;
-    const sideBarheight = listStartY + topTracks.length * rowHeight;
-
-    const box = svg.selectAll("rect.sidebar-box")
-        .data([null])
-        .join("rect")
-        .attr("class", "sidebar-box")
-        .attr("x", sidebarX)
-        .attr("y", 0)
-        .attr("width", sidebarWidth)
-        .attr("height", sideBarheight)
-        .attr("rx", 8)
-        .attr("fill", "#f0f0f0")
-        .attr("stroke", "#ccc")
-        .attr("stroke-width", 1)
-    ;
-
-    svg.selectAll("text.sidebar-title")
-        .data([null])
-        .join("text")
-        .attr("class", "sidebar-title")
-        .attr("x", sidebarX + sidebarPadding)
-        .attr("y", 18)
-        .attr("font-size", "12px")
-        .attr("font-weight", "600")
-        .attr("fill", "#333")
-        .text("Top Tracks this Month");
-
-    svg.selectAll(".track-label")
-        .data(topTracks)
-        .join("text")
-        .attr("class", "track-label")
-        .attr("x", sidebarX + sidebarPadding)
-        .attr("y", (d, i) => listStartY + i * rowHeight)
-        .attr("font-size", "10px")
-        .attr("fill", "#333")
-        .text(track => `${truncate(track.trackName, 18)} - ${truncate(track.artistName, 18)}`);
-
 }
 
 // ---- controls ----
@@ -276,8 +251,8 @@ const totalHeight = height + margin.top + margin.bottom;
 d3.select("#controls").style("max-width", totalWidth + "px");
 
 // right side for sidebar with top tracks
-const sidebarWidth = 220;
-const sidebarGap = 16;
+const sidebarWidth = 0;
+const sidebarGap = 0;
 const chartWidth = width - sidebarWidth - sidebarGap;
 const maxRadius = Math.min(chartWidth, height) / 4;
 
@@ -295,7 +270,6 @@ const r = d3.scaleSqrt()
 
 // common elements
 const bubblesG = svg.append("g");
-const annotationG = svg.append("g");
 const tooltip = d3.select(".tooltip");
 
 // bubble chart render
