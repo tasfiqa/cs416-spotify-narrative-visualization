@@ -67,10 +67,12 @@ async function loadScene(i, storylines) {
 
   const topTrackFromArtist = topTracks.filter(t => t.artistName == leaderArtist.artistName)[0];
   const leaderMinutes = Math.round(leaderArtist.minutesPlayed);
+  minutesPlayedRunningSum[i] = totalMinutesPlayed + (i > 0 ? minutesPlayedRunningSum[i - 1] : 0);
 
   const annotation = create_annotation(
     storyline,
-    totalMinutesPlayed, 
+    totalMinutesPlayed,
+    minutesPlayedRunningSum[i],
     leaderArtist,
     leaderMinutes,
     topTrackFromArtist
@@ -94,14 +96,16 @@ async function loadScene(i, storylines) {
 function create_annotation(
   storyline,
   totalMinutesPlayed, 
+  minutesPlayedRunningSum,
   leaderArtist,
   leaderMinutes,
   topTrackFromArtist
 ){
-  const line1 = `Total Monthly Playtime: ${Math.round(totalMinutesPlayed)} min`
-  const line2 = `${leaderArtist.artistName} led the month with ${leaderMinutes} minutes played, mostly from "${topTrackFromArtist.trackName}."`;
-  const line3 = `${storyline}`;
-  return [line1, line2, line3].join("<br>");
+  const line1 = `Total Monthly Playtime: <strong>${Math.round(totalMinutesPlayed)} min.</strong>`;
+  const line2 = `Minutes Played Since July 2025: <strong>${Math.round(minutesPlayedRunningSum)} min.</strong>`;
+  const line3 = `<strong>${leaderArtist.artistName}</strong> led the month with <strong>${leaderMinutes}</strong> minutes played, mostly from "<strong>${topTrackFromArtist.trackName}</strong>".`;
+  const line4 = `<strong>${storyline}</strong>`;
+  return [line1, line2, line3, line4].join("<br>");
 
 }
 
@@ -241,6 +245,7 @@ const scenes = [
 ];
 
 const sceneData = new Array(scenes.length).fill(null);
+const minutesPlayedRunningSum = new Array(scenes.length).fill(null);
 
 let sceneIndex = 0;
 const DURATION = 750;

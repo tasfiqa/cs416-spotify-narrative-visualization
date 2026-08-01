@@ -108,6 +108,7 @@ class MusicHistory:
         )
         return grouped_df
 
+
     # def write_storylines(self):
     #     month_year = [
     #         (2025, 7),
@@ -164,6 +165,12 @@ class MusicHistory:
         tracks_fp = f"tracks_{month}_{year}.csv"
         print(f"Writing {tracks_fp}")
         tracks.to_csv(f"data/preprocessed_data/{tracks_fp}", index=False)
+
+    def get_total_minutes_played(self, month: int, year: int):
+        month_df = self.filter_month(month, year)
+        return month_df["minutesPlayed"].sum()
+
+    
 
 
 if __name__ == "__main__":
