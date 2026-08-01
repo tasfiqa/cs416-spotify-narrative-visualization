@@ -251,14 +251,14 @@ let sceneIndex = 0;
 const DURATION = 750;
 
 const margin = { top: 36, right: 20, bottom: 14, left: 14 };
-const width = 1000 - margin.left - margin.right;
-const height = 750 - margin.top - margin.bottom;
+const width = 800 - margin.left - margin.right;
+const height = 600 - margin.top - margin.bottom;
 const totalWidth = width + margin.left + margin.right;
 const totalHeight = height + margin.top + margin.bottom;
 d3.select("#controls").style("max-width", totalWidth + "px");
 
 // right side for sidebar with top tracks
-const chartWidth = width;
+const chartWidth = width-100;
 const maxRadius = Math.min(chartWidth, height) / 4;
 
 const svg = d3.select("#chart")
