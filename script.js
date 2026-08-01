@@ -40,9 +40,10 @@ function truncate(text, max) {
 }
 
 // Load one month's artists + tracks, and derive data for scene to render
-async function loadScene(i) {
+async function loadScene(i, storylines) {
   const [artists, tracks] = await Promise.all([scenes[i].artists, scenes[i].tracks]);
-
+  const keys = Object.keys(storylines);
+  const storyline = storylines[keys[i]];
   // for all artists, fetch the top tracks for each 
   const topArtists = [...artists]
     .sort((a, b) => d3.descending(a.minutesPlayed, b.minutesPlayed))
@@ -68,13 +69,12 @@ async function loadScene(i) {
   const leaderMinutes = Math.round(leaderArtist.minutesPlayed);
 
   const annotation = create_annotation(
+    storyline,
     totalMinutesPlayed, 
     leaderArtist,
     leaderMinutes,
     topTrackFromArtist
-  )
-
-  
+  )  
 
   sceneData[i] = {
     topArtists: topArtists,
@@ -84,13 +84,15 @@ async function loadScene(i) {
     totalMinutesPlayed: totalMinutesPlayed,
     leaderArtist: leaderArtist,
     leaderMinutes: leaderMinutes,
-    topTrackFromArtist: topTrackFromArtist
+    topTrackFromArtist: topTrackFromArtist,
+    annotation: annotation
   };
   return sceneData[i];
 
 }
 
 function create_annotation(
+  storyline,
   totalMinutesPlayed, 
   leaderArtist,
   leaderMinutes,
@@ -98,7 +100,7 @@ function create_annotation(
 ){
   const line1 = `Total Monthly Playtime: ${Math.round(totalMinutesPlayed)} min`
   const line2 = `${leaderArtist.artistName} led the month with ${leaderMinutes} minutes played, mostly from "${topTrackFromArtist.trackName}."`;
-  const line3 = ""
+  const line3 = `${storyline}`;
   return [line1, line2, line3].join("<br>");
 
 }
@@ -288,8 +290,9 @@ d3.select("#prev").on("click", () => goTo(sceneIndex - 1));
   d3.select("#prev").property("disabled", true);
   d3.select("#next").property("disabled", true);
 
+  const storylines = await d3.json("data/preprocessed_data/storylines.json");
   // load scenes in advance
-  await Promise.all(scenes.map((_, i) => loadScene(i)));
+  await Promise.all(scenes.map((_, i) => loadScene(i, storylines)));
 
   const globalMax = d3.max(sceneData, s => d3.max(s.topArtists, d => d.minutesPlayed));
   r.domain([0, globalMax]);
