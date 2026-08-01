@@ -26,8 +26,9 @@
     }
     svg#chart {
       display: block;
-      width: 100%;
+      width: min(100%, 960px);
       height: auto;
+      margin: 0 auto;
     }
     .bubble {
       fill: steelblue;
@@ -41,7 +42,7 @@
       fill: orange;
     }
     .bubble-value {
-      font-size: 11px;
+      font-size: 13px;
       fill: #fff;
       pointer-events: none;
       text-anchor: middle;
@@ -50,7 +51,7 @@
       fill: #52606d;
     }
     .bubble-name {
-      font-size: 11px;
+      font-size: 13px;
       font-weight: 600;
       fill: #1f2933;
       pointer-events: none;
@@ -61,7 +62,7 @@
       font-weight: 400;
     }
     .axis text {
-      font-size: 12px;
+      font-size: 13px;
       fill: #52606d;
     }
     .axis path,
@@ -69,7 +70,7 @@
       stroke: #cbd5e1;
     }
     .annotation-text {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 600;
       fill: #1f2933;
     }
