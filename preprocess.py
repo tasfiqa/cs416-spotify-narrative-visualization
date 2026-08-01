@@ -108,46 +108,46 @@ class MusicHistory:
         )
         return grouped_df
 
-    def write_storylines(self):
-        month_year = [
-            (2025, 7),
-            (2025, 8),
-            (2025, 9),
-            (2025, 10),
-            (2025, 11),
-            (2025, 12),
-            (2026, 1),
-            (2026, 2),
-            (2026, 3),
-            (2026, 4),
-            (2026, 5),
-            (2026, 6),
-            (2026, 7),
-        ]
-        storylines = [
-            "The year kicks off with Andrew Bird as your first-ever leader.",
-            "Queens of the Stone Age takes over — a new leader for a second straight month.",
-            "Silversun Pickups leads for the first time. Three months in, you've had three different favorites.",
-            "System Of A Down debuts at the top.",
-            "System Of A Down leads again — the first artist all year to repeat, breaking your 4-month streak of new favorites.",
-            "Sufjan Stevens takes over to close out 2025. System Of A Down's run ends at two months.",
-            "The Antlers open the new year as a fresh leader.",
-            "Silver Mt. Zion leads for the first time — a one-month detour.",
-            "The Rolling Stones take the top spot, your eighth different leader in nine months.",
-            "The Antlers return to the top three months after their debut — their second time leading.",
-            "The Antlers lead for a second straight month, now their longest run yet.",
-            "The Antlers extend to a third consecutive month on top — the longest streak of your year.",
-            "Carissa's Wierd closes out the year as a new favorite, but The Antlers finish as your most dominant artist overall, having led four months total.",
-        ]
+    # def write_storylines(self):
+    #     month_year = [
+    #         (2025, 7),
+    #         (2025, 8),
+    #         (2025, 9),
+    #         (2025, 10),
+    #         (2025, 11),
+    #         (2025, 12),
+    #         (2026, 1),
+    #         (2026, 2),
+    #         (2026, 3),
+    #         (2026, 4),
+    #         (2026, 5),
+    #         (2026, 6),
+    #         (2026, 7),
+    #     ]
+    #     storylines = [
+    #         "The year kicks off with Andrew Bird as your first-ever leader.",
+    #         "Queens of the Stone Age takes over - a new leader for a second straight month.",
+    #         "Silversun Pickups leads for the first time. Three months in, you've had three different favorites.",
+    #         "System Of A Down debuts at the top.",
+    #         "System Of A Down leads again - the first artist all year to repeat, breaking your 4-month streak of new favorites.",
+    #         "Sufjan Stevens takes over to close out 2025. System Of A Down's run ends at two months.",
+    #         "The Antlers open the new year as a fresh leader.",
+    #         "Silver Mt. Zion leads for the first time - a one-month detour.",
+    #         "The Rolling Stones take the top spot, your eighth different leader in nine months.",
+    #         "The Antlers return to the top three months after their debut - their second time leading.",
+    #         "The Antlers lead for a second straight month, now their longest run yet.",
+    #         "The Antlers extend to a third consecutive month on top - the longest streak of your year.",
+    #         "Carissa's Wierd closes out the year as a new favorite, but The Antlers finish as your most dominant artist overall, having led four months total.",
+    #     ]
 
-        storylines_json = {
-            f"{year}-{month}": storyline
-            for (year, month), storyline in zip(month_year, storylines)
-        }
+    #     storylines_json = {
+    #         f"{year}-{month}": storyline
+    #         for (year, month), storyline in zip(month_year, storylines)
+    #     }
 
-        storylines_fp = os.path.join(self.write_dir, "storylines.json")
-        with open(storylines_fp, "w") as f:
-            json.dump(storylines_json, f, indent=4)
+    #     storylines_fp = os.path.join(self.write_dir, "storylines.json")
+    #     with open(storylines_fp, "w") as f:
+    #         json.dump(storylines_json, f, indent=4)
 
 
     def write_filtered_data(self, month: int, year: int):
