@@ -251,8 +251,8 @@ let sceneIndex = 0;
 const DURATION = 750;
 
 const margin = { top: 36, right: 20, bottom: 14, left: 14 };
-const width = 1920 - margin.left - margin.right;
-const height = 1080 - margin.top - margin.bottom;
+const width = 1000 - margin.left - margin.right;
+const height = 750 - margin.top - margin.bottom;
 const totalWidth = width + margin.left + margin.right;
 const totalHeight = height + margin.top + margin.bottom;
 d3.select("#controls").style("max-width", totalWidth + "px");
